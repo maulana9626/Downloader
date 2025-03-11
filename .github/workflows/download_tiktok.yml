@@ -1,8 +1,11 @@
 name: Auto Download TikTok Video
 
 on:
-  push:  # Workflow berjalan otomatis setiap kali ada commit baru
-  workflow_dispatch:  # Masih bisa dijalankan manual juga
+  push:  # Otomatis berjalan setiap ada perubahan di repo
+  workflow_dispatch:  # Bisa dijalankan manual juga
+
+permissions:
+  contents: write  # Memberikan izin menulis ke repo
 
 jobs:
   download_and_commit_video:
@@ -17,28 +20,30 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y wget curl jq
 
-    - name: Get actual TikTok Video URL
+    - name: Resolve TikTok Video URL
       run: |
-        response=$(curl -sL "https://vm.tiktok.com/ZSMggXVNH/")
-        video_url=$(echo "$response" | grep -oP 'video_url":"\K(.*?)(?=")')
-        echo "Resolved Video URL: $video_url"
-        if [ -z "$video_url" ]; then
-          echo "Failed to extract video URL. Exiting."
+        echo "Resolving TikTok URL..."
+        resolved_url=$(curl -Ls -o /dev/null -w %{url_effective} "https://vm.tiktok.com/ZSMggXVNH/")
+        echo "Resolved URL: $resolved_url"
+        if [[ -z "$resolved_url" ]]; then
+          echo "Error: Failed to resolve TikTok URL."
           exit 1
         fi
-        echo "video_url=$video_url" >> $GITHUB_ENV
+        echo "VIDEO_URL=$resolved_url" >> $GITHUB_ENV
 
     - name: Download TikTok Video
       run: |
-        curl -L "$video_url" -o video.mp4
-        if [ ! -f "video.mp4" ]; then
-          echo "Video download failed."
+        echo "Downloading video from $VIDEO_URL..."
+        curl -L "$VIDEO_URL" -o video.mp4
+        if [ ! -s "video.mp4" ]; then
+          echo "Error: Video download failed."
           exit 1
         fi
 
-    - name: Upload Video as Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tiktok-video
-        path: video.mp4
-      
+    - name: Commit and Push Video
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+        git add video.mp4
+        git commit -m "Auto-download TikTok video"
+        git push || echo "No changes to commit"
