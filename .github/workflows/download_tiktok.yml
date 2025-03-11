@@ -2,51 +2,43 @@ name: Auto Download TikTok Video
 
 on:
   push:
-  workflow_dispatch:
-
-permissions:
-  contents: write
+    branches:
+      - main
+  schedule:
+    - cron: '0 * * * *'  # Jalan setiap jam
 
 jobs:
-  download_and_commit_video:
+  download_and_commit:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Install Dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y curl wget ffmpeg
-        pip install yt-dlp
+      - name: Cek file video_url.txt
+        run: |
+          ls -lah
+          if [ -f "video_url.txt" ]; then
+            cat video_url.txt
+          else
+            echo "File video_url.txt tidak ditemukan!" && exit 1
+          fi
 
-    - name: Read TikTok URL from File
-      run: |
-        if [ ! -f video_url.txt ]; then
-          echo "Error: video_url.txt not found!"
-          exit 1
-        fi
-        VIDEO_URL=$(cat video_url.txt | tr -d '[:space:]')
-        echo "Using URL: $VIDEO_URL"
-        echo "VIDEO_URL=$VIDEO_URL" >> $GITHUB_ENV
+      - name: Install yt-dlp
+        run: |
+          sudo apt update
+          sudo apt install -y yt-dlp
 
-    - name: Download TikTok Video Using yt-dlp
-      run: |
-        yt-dlp --no-warnings --no-check-certificate \
-               --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-               -o "video.mp4" "$VIDEO_URL"
+      - name: Download TikTok Video
+        run: |
+          VIDEO_URL=$(cat video_url.txt)
+          yt-dlp -o "tiktok_video.mp4" "$VIDEO_URL"
 
-        if [ ! -s "video.mp4" ]; then
-          echo "Error: Video download failed."
-          exit 1
-        fi
-
-    - name: Commit and Push Video
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add video.mp4
-        git commit -m "Auto-download TikTok video"
-        git push || echo "No changes to commit"
-        
+      - name: Commit dan push perubahan
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add -A
+          git commit -m "Update downloaded TikTok video" --allow-empty || echo "No changes to commit"
+          git push origin main || echo "Nothing to push"
+          
