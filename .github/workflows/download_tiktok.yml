@@ -15,36 +15,28 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install Dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget curl jq ffmpeg  # Tambahkan ffmpeg
+        sudo apt update
+        sudo apt install -y curl wget ffmpeg
+        pip install yt-dlp
 
-    - name: Resolve TikTok Video URL
+    - name: Read TikTok URL from File
       run: |
-        echo "Resolving TikTok URL..."
-        resolved_url=$(curl -Ls -o /dev/null -w %{url_effective} "https://vm.tiktok.com/ZSMggXVNH/")
-        echo "Resolved URL: $resolved_url"
-        if [[ -z "$resolved_url" ]]; then
-          echo "Error: Failed to resolve TikTok URL."
+        if [ ! -f video_url.txt ]; then
+          echo "Error: video_url.txt not found!"
           exit 1
         fi
-        echo "VIDEO_URL=$resolved_url" >> $GITHUB_ENV
+        VIDEO_URL=$(cat video_url.txt | tr -d '[:space:]')
+        echo "Using URL: $VIDEO_URL"
+        echo "VIDEO_URL=$VIDEO_URL" >> $GITHUB_ENV
 
-    - name: Download TikTok Video (M3U8 Handling)
+    - name: Download TikTok Video Using yt-dlp
       run: |
-        echo "Fetching direct video link..."
-        video_direct_url=$(curl -s "$VIDEO_URL" | grep -oP 'playAddr":"\K(.*?)(?=")' | sed 's/\\u002F/\//g' | sed 's/\\u0026/&/g')
-        echo "Direct video URL: $video_direct_url"
-        
-        if [[ -z "$video_direct_url" ]]; then
-          echo "Error: Failed to extract direct video URL."
-          exit 1
-        fi
+        yt-dlp --no-warnings --no-check-certificate \
+               --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+               -o "video.mp4" "$VIDEO_URL"
 
-        echo "Downloading video..."
-        ffmpeg -i "$video_direct_url" -c copy video.mp4
-        
         if [ ! -s "video.mp4" ]; then
           echo "Error: Video download failed."
           exit 1
