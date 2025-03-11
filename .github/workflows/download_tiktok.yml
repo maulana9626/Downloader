@@ -5,7 +5,8 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 * * * *'  # Jalan setiap jam
+    - cron: '0 */6 * * *' # Jalankan setiap 6 jam (opsional)
+  workflow_dispatch: # Bisa dijalankan manual dari GitHub Actions
 
 jobs:
   download_and_commit:
@@ -15,30 +16,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cek file video_url.txt
-        run: |
-          ls -lah
-          if [ -f "video_url.txt" ]; then
-            cat video_url.txt
-          else
-            echo "File video_url.txt tidak ditemukan!" && exit 1
-          fi
-
       - name: Install yt-dlp
         run: |
           sudo apt update
-          sudo apt install -y yt-dlp
+          sudo apt install -y yt-dlp ffmpeg
 
       - name: Download TikTok Video
         run: |
-          VIDEO_URL=$(cat video_url.txt)
+          VIDEO_URL="https://vm.tiktok.com/ZSMggXVNH/"
+          echo "Mengunduh video dari: $VIDEO_URL"
           yt-dlp -o "tiktok_video.mp4" "$VIDEO_URL"
+
+      - name: Cek file hasil download
+        run: |
+          ls -lah
+          file tiktok_video.mp4 || echo "Video tidak ditemukan!"
 
       - name: Commit dan push perubahan
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add -A
-          git commit -m "Update downloaded TikTok video" --allow-empty || echo "No changes to commit"
-          git push origin main || echo "Nothing to push"
-          
+          git add -f tiktok_video.mp4
+          git commit -m "Update downloaded TikTok video" || echo "Tidak ada perubahan untuk di-commit"
+          git push origin main || echo "Gagal push, mungkin tidak ada perubahan"
