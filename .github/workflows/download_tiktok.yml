@@ -1,12 +1,8 @@
-name: Download TikTok Video
+name: Auto Download TikTok Video
 
 on:
-  workflow_dispatch:
-    inputs:
-      url:
-        description: 'TikTok Video URL'
-        required: true
-        default: 'https://vm.tiktok.com/ZSMggXVNH/'
+  push:  # Workflow berjalan otomatis setiap kali ada commit baru
+  workflow_dispatch:  # Masih bisa dijalankan manual juga
 
 jobs:
   download_and_commit_video:
@@ -14,7 +10,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -23,20 +19,26 @@ jobs:
 
     - name: Get actual TikTok Video URL
       run: |
-        # Menggunakan curl untuk mengarah ke URL video TikTok sebenarnya
-        response=$(curl -sL "${{ github.event.inputs.url }}")
+        response=$(curl -sL "https://vm.tiktok.com/ZSMggXVNH/")
         video_url=$(echo "$response" | grep -oP 'video_url":"\K(.*?)(?=")')
-        echo "Video URL is: $video_url"
-        echo "::set-output name=video_url::$video_url"
+        echo "Resolved Video URL: $video_url"
+        if [ -z "$video_url" ]; then
+          echo "Failed to extract video URL. Exiting."
+          exit 1
+        fi
+        echo "video_url=$video_url" >> $GITHUB_ENV
 
     - name: Download TikTok Video
       run: |
-        curl -L ${{ steps.Get_actual_TikTok_Video_URL.outputs.video_url }} -o video.mp4
+        curl -L "$video_url" -o video.mp4
+        if [ ! -f "video.mp4" ]; then
+          echo "Video download failed."
+          exit 1
+        fi
 
-    - name: Commit and Push Video to GitHub
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add video.mp4
-        git commit -m "Add TikTok video"
-        git push
+    - name: Upload Video as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tiktok-video
+        path: video.mp4
+      
