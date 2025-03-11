@@ -1,11 +1,11 @@
 name: Auto Download TikTok Video
 
 on:
-  push:  # Otomatis berjalan setiap ada perubahan di repo
-  workflow_dispatch:  # Bisa dijalankan manual juga
+  push:
+  workflow_dispatch:
 
 permissions:
-  contents: write  # Memberikan izin menulis ke repo
+  contents: write
 
 jobs:
   download_and_commit_video:
@@ -18,7 +18,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget curl jq
+        sudo apt-get install -y wget curl jq ffmpeg  # Tambahkan ffmpeg
 
     - name: Resolve TikTok Video URL
       run: |
@@ -31,10 +31,17 @@ jobs:
         fi
         echo "VIDEO_URL=$resolved_url" >> $GITHUB_ENV
 
-    - name: Download TikTok Video
+    - name: Download TikTok Video (M3U8 Handling)
       run: |
-        echo "Downloading video from $VIDEO_URL..."
-        curl -L "$VIDEO_URL" -o video.mp4
+        echo "Fetching direct video link..."
+        video_direct_url=$(curl -s "$VIDEO_URL" | grep -oP 'playAddr":"\K(.*?)(?=")' | sed 's/\\u0026/&/g')
+        echo "Direct video URL: $video_direct_url"
+        if [[ -z "$video_direct_url" ]]; then
+          echo "Error: Failed to extract direct video URL."
+          exit 1
+        fi
+        echo "Downloading video..."
+        ffmpeg -i "$video_direct_url" -c copy video.mp4
         if [ ! -s "video.mp4" ]; then
           echo "Error: Video download failed."
           exit 1
@@ -47,3 +54,4 @@ jobs:
         git add video.mp4
         git commit -m "Auto-download TikTok video"
         git push || echo "No changes to commit"
+        
