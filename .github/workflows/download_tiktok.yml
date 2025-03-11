@@ -34,14 +34,17 @@ jobs:
     - name: Download TikTok Video (M3U8 Handling)
       run: |
         echo "Fetching direct video link..."
-        video_direct_url=$(curl -s "$VIDEO_URL" | grep -oP 'playAddr":"\K(.*?)(?=")' | sed 's/\\u0026/&/g')
+        video_direct_url=$(curl -s "$VIDEO_URL" | grep -oP 'playAddr":"\K(.*?)(?=")' | sed 's/\\u002F/\//g' | sed 's/\\u0026/&/g')
         echo "Direct video URL: $video_direct_url"
+        
         if [[ -z "$video_direct_url" ]]; then
           echo "Error: Failed to extract direct video URL."
           exit 1
         fi
+
         echo "Downloading video..."
         ffmpeg -i "$video_direct_url" -c copy video.mp4
+        
         if [ ! -s "video.mp4" ]; then
           echo "Error: Video download failed."
           exit 1
