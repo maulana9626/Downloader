@@ -1,0 +1,36 @@
+name: Download Facebook Video
+
+on:
+  push:
+    paths:
+      - "facebook_urls.txt"
+  workflow_dispatch:
+
+jobs:
+  download_video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install yt-dlp
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+          pip install yt-dlp
+
+      - name: Download Facebook Videos
+        run: |
+          mkdir videos
+          while IFS= read -r url; do
+            yt-dlp "$url" -f best -o "videos/Facebook-%(upload_date)s-%(id)s.%(ext)s"
+          done < facebook_urls.txt
+
+      - name: Commit and Push Videos
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add videos/
+          git commit -m "Add downloaded Facebook videos"
+          git push
