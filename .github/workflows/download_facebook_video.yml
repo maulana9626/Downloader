@@ -1,7 +1,9 @@
-name: Facebook Video Downloader
+name: Auto Download Facebook Video
 
 on:
-  workflow_dispatch: # Menjalankan manual dari GitHub Actions
+  push:
+    paths:
+      - "facebook_urls.txt"  # Akan berjalan otomatis jika file ini diperbarui
 
 jobs:
   download_facebook_video:
@@ -31,5 +33,5 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "actions@github.com"
           git add videos/*.mp4
-          git commit -m "Add downloaded Facebook videos"
+          git commit -m "Auto-download Facebook videos"
           git push origin main
