@@ -1,36 +1,35 @@
-name: Download Facebook Video
+name: Facebook Video Downloader
 
 on:
-  push:
-    paths:
-      - "facebook_urls.txt"
-  workflow_dispatch:
+  workflow_dispatch: # Menjalankan manual dari GitHub Actions
 
 jobs:
-  download_video:
+  download_facebook_video:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install yt-dlp
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg
-          pip install yt-dlp
+          sudo apt install -y yt-dlp
 
       - name: Download Facebook Videos
         run: |
-          mkdir videos
+          mkdir -p videos
           while IFS= read -r url; do
-            yt-dlp "$url" -f best -o "videos/Facebook-%(upload_date)s-%(id)s.%(ext)s"
+            echo "Downloading: $url"
+            yt-dlp "$url" -o "videos/%(title)s.%(ext)s"
           done < facebook_urls.txt
 
-      - name: Commit and Push Videos
+      - name: Commit and Push to Repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add videos/
+          git config --global user.email "actions@github.com"
+          git add videos/*.mp4
           git commit -m "Add downloaded Facebook videos"
-          git push
+          git push origin main
