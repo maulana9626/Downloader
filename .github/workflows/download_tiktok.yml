@@ -1,41 +1,36 @@
-name: Auto Download TikTok Video
+import requests
+from bs4 import BeautifulSoup
+import os
 
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 */6 * * *' # Jalankan setiap 6 jam (opsional)
-  workflow_dispatch: # Bisa dijalankan manual dari GitHub Actions
+def download_facebook_video(url, output_path):
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        video_tag = soup.find('meta', {'property': 'og:video'})
+        
+        if video_tag:
+            video_url = video_tag['content']
+            video_response = requests.get(video_url)
 
-jobs:
-  download_and_commit:
-    runs-on: ubuntu-latest
+            with open(output_path, 'wb') as file:
+                file.write(video_response.content)
+            print(f"Video downloaded successfully to {output_path}")
+        else:
+            print("Video URL not found on the provided Facebook page.")
+    else:
+        print(f"Failed to retrieve the page. Status code: {response.status_code}")
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+def download_videos_from_file(file_path, output_dir):
+    with open(file_path, 'r') as file:
+        urls = file.readlines()
+    
+    for i, url in enumerate(urls):
+        url = url.strip()
+        if url:
+            output_file_path = os.path.join(output_dir, f"video_{i+1}.mp4")
+            download_facebook_video(url, output_file_path)
 
-      - name: Install yt-dlp
-        run: |
-          sudo apt update
-          sudo apt install -y yt-dlp ffmpeg
-
-      - name: Download TikTok Video
-        run: |
-          VIDEO_URL="https://vm.tiktok.com/ZSMggXVNH/"
-          echo "Mengunduh video dari: $VIDEO_URL"
-          yt-dlp -o "tiktok_video.mp4" "$VIDEO_URL"
-
-      - name: Cek file hasil download
-        run: |
-          ls -lah
-          file tiktok_video.mp4 || echo "Video tidak ditemukan!"
-
-      - name: Commit dan push perubahan
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add -f tiktok_video.mp4
-          git commit -m "Update downloaded TikTok video" || echo "Tidak ada perubahan untuk di-commit"
-          git push origin main || echo "Gagal push, mungkin tidak ada perubahan"
+# Contoh penggunaan
+facebook_urls_file = 'facebook_urls.txt'
+output_directory = '.'  # Menyimpan video di direktori utama repository
+download_videos_from_file(facebook_urls_file, output_directory)
